@@ -1,0 +1,21 @@
+[
+ {
+  "taskId": "multiple-choice-1667070148",
+  "points": 1,
+  "state": {
+   "active": "54677ef0-1271-a75b-1dbd-15c7b7b8483a"
+  },
+  "results": [
+   {
+    "current": [
+     "54677ef0-1271-a75b-1dbd-15c7b7b8483a"
+    ],
+    "right": [
+     "54677ef0-1271-a75b-1dbd-15c7b7b8483a"
+    ],
+    "timestamp": 1569016184694,
+    "state": "pass"
+   }
+  ]
+ }
+]

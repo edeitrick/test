@@ -1,0 +1,242 @@
+[
+ {
+  "type": "multiple-choice",
+  "taskId": "multiple-choice-1667070148",
+  "source": {
+   "name": "Errors",
+   "showName": true,
+   "instructions": " int d; a = 5; ",
+   "multipleResponse": false,
+   "answers": [
+    {
+     "_id": "43a6e6dd-ebc2-d3ee-58dd-adb86561d33b",
+     "correct": false,
+     "answer": "int "
+    },
+    {
+     "_id": "54677ef0-1271-a75b-1dbd-15c7b7b8483a",
+     "correct": true,
+     "answer": "to many ; "
+    }
+   ],
+   "guidance": "",
+   "showGuidanceAfterResponse": false,
+   "showExpectedAnswer": false,
+   "points": 1,
+   "incorrectPoints": 0,
+   "metadata": {
+    "tags": [
+     {
+      "name": "Assessment Type",
+      "value": "Multiple Choice"
+     }
+    ],
+    "files": [
+     "quiz1.c"
+    ],
+    "opened": [
+     {
+      "type": "file",
+      "panelNumber": 0,
+      "content": "quiz1.c"
+     },
+     {
+      "type": "terminal",
+      "panelNumber": 0,
+      "content": ""
+     }
+    ]
+   },
+   "bloomsObjectiveLevel": "",
+   "learningObjectives": ""
+  }
+ },
+ {
+  "type": "code-output-compare",
+  "taskId": "code-output-compare-306496905",
+  "source": {
+   "name": "Error test",
+   "showName": true,
+   "instructions": "",
+   "command": "./error",
+   "preExecuteCommand": "gcc error.c -o error",
+   "guidance": "",
+   "showGuidanceAfterResponse": false,
+   "points": 20,
+   "oneTimeTest": false,
+   "options": {
+    "ignoreCase": true,
+    "ignoreWhitespaces": true,
+    "ignoreNewline": true,
+    "matchSubstring": true,
+    "timeout": 30
+   },
+   "showExpectedAnswer": false,
+   "sequence": [
+    {
+     "arguments": "",
+     "input": "5                                                                                                      2.5\n3.0 3.3                                                                          ",
+     "output": "k= 5 X= 2.5                                                                                                                                y= 3 z= 3.3",
+     "showFeedback": false,
+     "feedback": ""
+    }
+   ],
+   "metadata": {
+    "tags": [
+     {
+      "name": "Assessment Type",
+      "value": "Standard Code Test"
+     }
+    ],
+    "files": [
+     "error.c"
+    ],
+    "opened": [
+     {
+      "type": "file",
+      "panelNumber": 0,
+      "content": "error.c"
+     },
+     {
+      "type": "terminal",
+      "panelNumber": 1,
+      "content": ""
+     }
+    ]
+   },
+   "bloomsObjectiveLevel": "",
+   "learningObjectives": ""
+  }
+ },
+ {
+  "type": "code-output-compare",
+  "taskId": "code-output-compare-3758561617",
+  "source": {
+   "name": "test1",
+   "showName": true,
+   "instructions": "",
+   "command": "./quiz1",
+   "preExecuteCommand": "gcc quiz1.c -o quiz1",
+   "guidance": "",
+   "showGuidanceAfterResponse": false,
+   "points": 60,
+   "oneTimeTest": false,
+   "options": {
+    "ignoreCase": true,
+    "ignoreWhitespaces": true,
+    "ignoreNewline": true,
+    "matchSubstring": true,
+    "timeout": 30
+   },
+   "showExpectedAnswer": false,
+   "sequence": [
+    {
+     "arguments": "",
+     "input": "12\n12",
+     "output": "You lost!",
+     "showFeedback": false,
+     "feedback": ""
+    },
+    {
+     "arguments": "",
+     "input": "23\n2\n3\n10\n6\n",
+     "output": "You won!",
+     "showFeedback": false,
+     "feedback": ""
+    },
+    {
+     "arguments": "",
+     "input": "2\n3\n10\n6",
+     "output": "You won!",
+     "showFeedback": false,
+     "feedback": ""
+    }
+   ],
+   "metadata": {
+    "tags": [
+     {
+      "name": "Assessment Type",
+      "value": "Standard Code Test"
+     }
+    ],
+    "files": [
+     "error.c",
+     "quiz1.c"
+    ],
+    "opened": [
+     {
+      "type": "file",
+      "panelNumber": 0,
+      "content": "error.c"
+     },
+     {
+      "type": "file",
+      "panelNumber": 0,
+      "content": "quiz1.c"
+     },
+     {
+      "type": "terminal",
+      "panelNumber": 1,
+      "content": ""
+     }
+    ]
+   },
+   "bloomsObjectiveLevel": "",
+   "learningObjectives": ""
+  }
+ },
+ {
+  "type": "multiple-choice",
+  "taskId": "multiple-choice-1497575987",
+  "source": {
+   "name": "Parse Tree",
+   "showName": true,
+   "instructions": "If j=7  y=0 r=8 x =8\n\nWhat is the resulting parse tree for the following expression:\nk= y || r !=x &&  ++j\n ",
+   "multipleResponse": false,
+   "answers": [
+    {
+     "_id": "2d3ed736-875d-c2a5-5eca-d40627963499",
+     "correct": true,
+     "answer": "![.guides/img/answer](.guides/img/answer.PNG)\n\nk=0 \nj= 7"
+    },
+    {
+     "_id": "b3591c8c-f2b1-fe64-b94c-e2ff1f80e93d",
+     "correct": false,
+     "answer": "![.guides/img/sol2](.guides/img/sol2.PNG)\nk=0\nj=7"
+    },
+    {
+     "_id": "c99cfe31-b58b-66b8-1fd2-f058ada4f591",
+     "correct": false,
+     "answer": "![.guides/img/answer](.guides/img/answer.PNG)\n\nk= 0 \nj= 8"
+    },
+    {
+     "_id": "a683466b-e10f-5427-a624-5e0a799cf2a2",
+     "correct": false,
+     "answer": "![.guides/img/sol2](.guides/img/sol2.PNG)\nk=0 \nj= 8"
+    },
+    {
+     "_id": "ef70b191-ce11-756b-2f26-557a7b8c9158",
+     "correct": false,
+     "answer": "None of the above"
+    }
+   ],
+   "guidance": "",
+   "showGuidanceAfterResponse": false,
+   "showExpectedAnswer": false,
+   "points": 20,
+   "incorrectPoints": 0,
+   "metadata": {
+    "tags": [
+     {
+      "name": "Assessment Type",
+      "value": "Multiple Choice"
+     }
+    ],
+    "files": [],
+    "opened": []
+   },
+   "bloomsObjectiveLevel": "",
+   "learningObjectives": ""
+  }
+ }
+]
