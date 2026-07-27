@@ -68,14 +68,16 @@ interval is hourly, so an alert can lag a new event by up to the poll interval.
 ## The code
 
 - `conflict_detector.py` — pure, network-free detection logic: parse Calendar
-  events, find new conflicts, and build the exact email subject/body. Reusable
-  from any runner.
+  events, find new conflicts, and build the exact email subject/body.
+- `emailer.py` — SMTP sender (the real auto-send the connector can't do).
+- `monitor.py` — the self-hosted runner: fetch from the Calendar API, detect,
+  de-dupe with a local state file, and send.
 - `test_conflict_detector.py` — unit tests for the overlap rule, all-day
   handling, recurring-series exclusion, edge-touching, and email formatting.
 
 ```bash
-python3 test_conflict_detector.py          # run tests
-python3 conflict_detector.py events.json 90 # dry-run against a saved events dump (window = 90 min)
+python3 test_conflict_detector.py                       # run tests
+EVENTS_FILE=events.json python3 monitor.py run --dry-run # offline dry-run, no API/SMTP
 ```
 
 `events.json` is anything shaped like the Calendar API's `events.list`
@@ -83,20 +85,42 @@ response: `{"events": [ ... ]}`.
 
 ---
 
-## Self-hosting it yourself (optional)
+## Self-hosting with real auto-send
 
-If you'd rather run this as your own service instead of the Claude Routine,
-wire `conflict_detector.py` to the Google APIs:
+This is the fully hands-off version: it **sends** the email itself (SMTP),
+rather than leaving a draft.
 
-1. Create a Google Cloud project, enable the **Google Calendar API** and
-   **Gmail API**, and make OAuth credentials (or a service account with
-   domain-wide delegation / calendar sharing).
-2. Fetch events with `events.list` on the Family calendar and feed the raw
-   list into `parse_events()`.
-3. Call `find_new_conflicts(events, now, window)` where `window` matches your
-   cron cadence (plus a small buffer so nothing slips between runs).
-4. For each returned `Conflict`, de-dupe (query Sent mail for `conflict.subject`,
-   or keep a small local store of `conflict.key()`), then send `conflict.subject`
-   / `conflict.body` to `ALERT_RECIPIENTS` via the Gmail API or SMTP.
-5. Run it on any scheduler (cron, systemd timer, Lambda + EventBridge, GitHub
-   Actions `schedule`).
+**1. Install deps**
+```bash
+pip install -r requirements.txt
+cp .env.example .env      # then fill it in
+```
+
+**2. Gmail App Password (for sending)**
+Turn on 2-Step Verification, then create an App Password at
+<https://myaccount.google.com/apppasswords>. Put the 16-character value in
+`SMTP_PASSWORD` and your address in `SMTP_USER` / `SMTP_FROM`.
+
+**3. Google Calendar API (for reading)**
+In Google Cloud Console: create a project, enable the **Google Calendar API**,
+configure the OAuth consent screen, and create an **OAuth client ID → Desktop
+app**. Download it as `credentials.json` next to `monitor.py`. The first run
+opens a browser once to authorize read-only calendar access and writes
+`token.json` (reused thereafter — copy it to a headless server if needed).
+
+**4. Suppress the existing backlog, then go live**
+```bash
+python3 monitor.py baseline     # marks all ~110 current overlaps as seen; sends nothing
+python3 monitor.py run          # from now on, sends only genuinely new conflicts
+```
+
+**5. Schedule it** (cron every 15 min, with a matching window buffer):
+```cron
+*/15 * * * * cd /path/to/family-calendar-conflict-detector && WINDOW_MINUTES=20 /usr/bin/python3 monitor.py run >> monitor.log 2>&1
+```
+Because reading uses the Calendar API directly (not the Claude scheduler), you
+can poll as often as you like — every few minutes — so alerts are near-immediate
+rather than hourly.
+
+Secrets (`.env`, `credentials.json`, `token.json`) and `state.json` are
+git-ignored — never commit them.

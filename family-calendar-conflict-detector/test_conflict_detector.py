@@ -79,6 +79,17 @@ def test_cancelled_events_ignored():
     assert len(parse_events(raw)) == len(RAW)
 
 
+def test_emailer_builds_correct_message():
+    import emailer
+    c = find_new_conflicts(parse_events(RAW), NOW, timedelta(hours=4))[0]
+    msg = emailer.build_message("edeitrick@gmail.com",
+                                ["edeitrick@gmail.com", "davidcpcu@gmail.com"],
+                                c.subject, c.body)
+    assert msg["Subject"] == "CONFLICT: EVIE OT is attempting to overlap with existing event Jellystone Camping"
+    assert msg["To"] == "edeitrick@gmail.com, davidcpcu@gmail.com"
+    assert msg.get_content().strip() == c.body
+
+
 if __name__ == "__main__":
     fns = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for fn in fns:
