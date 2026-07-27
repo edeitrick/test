@@ -141,3 +141,41 @@ rather than hourly.
 
 Secrets (`.env`, `credentials.json`, `token.json`) and `state.json` are
 git-ignored — never commit them.
+
+---
+
+## Deploy on GitHub Actions (serverless auto-send)
+
+`.github/workflows/family-calendar-conflict.yml` runs the monitor on a schedule
+(every 15 min) on GitHub's runners — no server of your own, and unlike the
+Claude sandbox, the runner can actually send SMTP. It reads the calendar via the
+Google Calendar API and sends real email.
+
+**One-time: mint a token locally** (the only step that needs a browser)
+1. In Google Cloud Console, on your OAuth **Desktop** client, download the JSON
+   as `credentials.json` into `family-calendar-conflict-detector/`.
+   (Client ID `481644684870-b8ldi9tibeqvbfpiag1ok4mkkkdk6e8l.apps.googleusercontent.com`.)
+2. Make sure the **Google Calendar API** is enabled and your Google account is
+   added as a **Test user** on the OAuth consent screen.
+3. Authorize once:
+   ```bash
+   cd family-calendar-conflict-detector
+   pip install -r requirements.txt
+   python3 monitor.py auth        # opens a browser; writes token.json
+   ```
+
+**Add two repository secrets** (Settings → Secrets and variables → Actions):
+- `GOOGLE_TOKEN_JSON` — the entire contents of the `token.json` you just made.
+- `SMTP_PASSWORD` — your Gmail app password.
+
+**Seed the backlog once** so the ~110 pre-existing overlaps stay quiet:
+```bash
+python3 monitor.py baseline    # locally, with token.json present
+```
+(The workflow's `WINDOW_MINUTES=30` also means only events created in the last
+30 min alert, so the backlog is doubly protected.)
+
+**Go live:** commit, then trigger the workflow once from the **Actions** tab
+(“Run workflow”) to confirm it’s green. It then runs every 15 minutes. The
+non-secret settings (sender, recipients, calendar id) live in the workflow’s
+`env:` block; edit them there.

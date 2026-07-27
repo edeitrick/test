@@ -6,6 +6,7 @@ both family addresses. De-dupes with a local state file so nothing is sent
 twice.
 
 Commands:
+    python3 monitor.py auth        # one-time local browser consent -> token.json
     python3 monitor.py run         # check + send alerts for new conflicts
     python3 monitor.py run --dry-run   # print what would be sent, send nothing
     python3 monitor.py baseline    # mark ALL current overlaps as seen, send nothing
@@ -73,6 +74,37 @@ def _key(c: Conflict) -> str:
 
 
 # --- calendar fetch -------------------------------------------------------
+def get_credentials(allow_interactive: bool = False):
+    """Load Google credentials, refreshing headlessly when possible.
+
+    In CI there is no browser: a valid token.json (with a refresh token) is
+    required and is refreshed over HTTPS. Only `monitor.py auth`, run locally,
+    passes allow_interactive=True to mint that token.json in the first place.
+    """
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    creds = None
+    if Path(TOKEN_FILE).exists():
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+    if creds and creds.valid:
+        return creds
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        Path(TOKEN_FILE).write_text(creds.to_json())
+        return creds
+    if not allow_interactive:
+        raise RuntimeError(
+            f"No valid {TOKEN_FILE}. Run `python3 monitor.py auth` locally once "
+            "to authorize, then store the resulting token.json (e.g. as a CI secret)."
+        )
+    flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+    creds = flow.run_local_server(port=0)  # one-time interactive consent
+    Path(TOKEN_FILE).write_text(creds.to_json())
+    return creds
+
+
 def fetch_events(now: datetime) -> list[dict]:
     """Fetch raw events from the Google Calendar API for the lookahead window.
 
@@ -83,22 +115,9 @@ def fetch_events(now: datetime) -> list[dict]:
     if events_file:
         return json.loads(Path(events_file).read_text()).get("events", [])
 
-    from google.oauth2.credentials import Credentials
-    from google.auth.transport.requests import Request
-    from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
 
-    creds = None
-    if Path(TOKEN_FILE).exists():
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)  # one-time interactive auth
-        Path(TOKEN_FILE).write_text(creds.to_json())
-
+    creds = get_credentials()
     service = build("calendar", "v3", credentials=creds)
     time_min = now.isoformat()
     time_max = (now + timedelta(days=LOOKAHEAD_DAYS)).isoformat()
@@ -156,12 +175,21 @@ def cmd_baseline() -> int:
     return 0
 
 
+def cmd_auth() -> int:
+    """One-time interactive authorization -> writes token.json."""
+    get_credentials(allow_interactive=True)
+    print(f"Authorized. Wrote {TOKEN_FILE} — store its contents as the GOOGLE_TOKEN_JSON secret.")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     cmd = argv[1] if len(argv) > 1 else "run"
     if cmd == "run":
         return cmd_run(dry_run="--dry-run" in argv)
     if cmd == "baseline":
         return cmd_baseline()
+    if cmd == "auth":
+        return cmd_auth()
     print(__doc__)
     return 2
 
