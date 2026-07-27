@@ -40,6 +40,8 @@ except ImportError:
 CALENDAR_ID = os.environ.get("FAMILY_CALENDAR_ID", FAMILY_CALENDAR_ID)
 LOOKAHEAD_DAYS = int(os.environ.get("LOOKAHEAD_DAYS", "90"))
 WINDOW_MINUTES = int(os.environ.get("WINDOW_MINUTES", "90"))
+# Opt-in: attribute name-less events to their creator (see conflict_detector).
+USE_CREATOR_FALLBACK = os.environ.get("USE_CREATOR_FALLBACK", "false").lower() in ("1", "true", "yes")
 RECIPIENTS = os.environ.get("ALERT_RECIPIENTS", ",".join(ALERT_RECIPIENTS)).split(",")
 STATE_PATH = Path(os.environ.get("STATE_PATH", "state.json"))
 
@@ -117,7 +119,8 @@ def fetch_events(now: datetime) -> list[dict]:
 def cmd_run(dry_run: bool) -> int:
     now = datetime.now(timezone.utc)
     events = parse_events(fetch_events(now))
-    conflicts = find_new_conflicts(events, now, timedelta(minutes=WINDOW_MINUTES))
+    conflicts = find_new_conflicts(events, now, timedelta(minutes=WINDOW_MINUTES),
+                                   use_creator_fallback=USE_CREATOR_FALLBACK)
 
     seen = load_state()
     fresh = [c for c in conflicts if _key(c) not in seen]
@@ -146,7 +149,7 @@ def cmd_baseline() -> int:
     now = datetime.now(timezone.utc)
     events = parse_events(fetch_events(now))
     seen = load_state()
-    for c in all_conflicts(events):
+    for c in all_conflicts(events, use_creator_fallback=USE_CREATOR_FALLBACK):
         seen.add(_key(c))
     save_state(seen)
     print(f"Baseline set: {len(seen)} existing overlaps marked as seen (no emails sent).")

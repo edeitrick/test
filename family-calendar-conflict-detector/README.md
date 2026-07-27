@@ -58,6 +58,23 @@ interval is hourly, so an alert can lag a new event by up to the poll interval.
   generate alerts for anything scheduled during them. If that gets noisy, the
   detector can be told to skip all-day events on one side — see
   `find_new_conflicts` in `conflict_detector.py`.
+- **Different named people are not a conflict.** A double-booking only matters
+  if the *same* person is in two places. If a new event names one family member
+  (e.g. "David pick up cake" or "David to call Rob" — non-family names like Rob
+  are ignored) and the overlapping event names *different* people (e.g.
+  "Elise+Evie Family Reunion"), no alert fires. The family roster and nicknames
+  live in `ROSTER` in `conflict_detector.py`.
+  - This works when **both** titles name people. A name-less event like
+    "Jellystone Camping" names nobody, so by default it is *not* auto-attributed
+    (we'd rather send a spurious alert than hide a real one — Evie could be on
+    that trip even though the title doesn't say so). Two ways to make the
+    camping case suppress cleanly:
+    1. **Name participants in the title** — "Jellystone Camping (Elise + Evie)".
+       Safest and most precise.
+    2. **Set `USE_CREATOR_FALLBACK=true`** — attributes a name-less event to
+       whoever created it. Suppresses more (David's errands vs Elise's camping),
+       but can hide a real conflict when a shared/family event was created by
+       one person. Off by default.
 - **Only newly-created events alert.** The monitor does not re-report the
   existing backlog of overlaps (there were ~110 at setup time); it reacts to
   fresh scheduling actions only. `all_conflicts()` exists if you ever want a

@@ -3,7 +3,7 @@
 from datetime import datetime, timezone, timedelta
 
 from conflict_detector import (
-    parse_events, find_new_conflicts, all_conflicts, Event,
+    parse_events, find_new_conflicts, all_conflicts, named_members, Event,
 )
 
 NOW = datetime(2026, 7, 27, 12, 0, tzinfo=timezone.utc)
@@ -77,6 +77,63 @@ def test_cancelled_events_ignored():
                   "end": {"dateTime": "2026-08-03T15:00:00Z"},
                   "created": "2026-07-27T09:00:00Z", "creator": {"displayName": "X"}}]
     assert len(parse_events(raw)) == len(RAW)
+
+
+def _pair(new_title, new_creator, existing_title, existing_creator):
+    """Two overlapping events, `new` created after `existing`."""
+    return [
+        {"id": "existing", "summary": existing_title, "status": "confirmed",
+         "start": {"date": "2026-08-03"}, "end": {"date": "2026-08-05"},
+         "created": "2026-06-01T00:00:00Z", "creator": {"email": existing_creator}},
+        {"id": "new", "summary": new_title, "status": "confirmed",
+         "start": {"dateTime": "2026-08-03T14:00:00Z"}, "end": {"dateTime": "2026-08-03T15:00:00Z"},
+         "created": "2026-07-27T09:00:00Z", "creator": {"email": new_creator}},
+    ]
+
+
+def test_named_members_extraction():
+    assert named_members("David pick up cake") == {"David"}
+    assert named_members("David to call Rob") == {"David"}          # Rob is not family
+    assert named_members("Elise+Evie at OBX") == {"Elise", "Evie"}
+    assert named_members("Jellystone Camping") == set()            # nobody named
+    assert named_members("review notes") == set()                  # 'Evie' not a substring hit
+
+
+def test_exception_different_named_people_suppressed():
+    # "David pick up cake" on top of "Elise+Evie Family Reunion" -> no conflict.
+    events = parse_events(_pair("David pick up cake", "davidcpcu@gmail.com",
+                                "Elise+Evie Family Reunion", "edeitrick@gmail.com"))
+    assert find_new_conflicts(events, NOW, timedelta(hours=4)) == []
+
+
+def test_exception_david_call_rob_suppressed():
+    events = parse_events(_pair("David to call Rob", "davidcpcu@gmail.com",
+                                "Elise+Evie at OBX", "edeitrick@gmail.com"))
+    assert find_new_conflicts(events, NOW, timedelta(hours=4)) == []
+
+
+def test_same_named_person_still_conflicts():
+    # Elise really is double-booked -> keep the alert.
+    events = parse_events(_pair("Elise dentist", "edeitrick@gmail.com",
+                                "Elise+Evie at OBX", "edeitrick@gmail.com"))
+    assert len(find_new_conflicts(events, NOW, timedelta(hours=4))) == 1
+
+
+def test_nameless_event_not_suppressed_by_default():
+    # "Jellystone Camping" names nobody -> we can't prove different people, so
+    # the conflict is NOT suppressed (safe default).
+    events = parse_events(_pair("David pick up cake", "davidcpcu@gmail.com",
+                                "Jellystone Camping", "edeitrick@gmail.com"))
+    assert len(find_new_conflicts(events, NOW, timedelta(hours=4))) == 1
+
+
+def test_creator_fallback_opt_in_suppresses_nameless():
+    # With the opt-in creator fallback, "Jellystone Camping" (created by Elise)
+    # is attributed to Elise, so David's errand no longer conflicts.
+    events = parse_events(_pair("David pick up cake", "davidcpcu@gmail.com",
+                                "Jellystone Camping", "edeitrick@gmail.com"))
+    assert find_new_conflicts(events, NOW, timedelta(hours=4),
+                              use_creator_fallback=True) == []
 
 
 def test_emailer_builds_correct_message():

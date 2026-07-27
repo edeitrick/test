@@ -17,8 +17,53 @@ cron job, etc.). See README.md for how it is wired up.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
+
+
+# --------------------------------------------------------------------------
+# Family roster — used to suppress non-conflicts between different people.
+#
+# A double-booking only matters if the SAME person is in two places at once.
+# If a new event names one family member (e.g. "David pick up cake") and it
+# lands on top of an event involving different people (e.g. "Elise+Evie
+# camping"), that is not a real conflict and should NOT alert.
+#
+# ROSTER maps a canonical name -> the aliases/nicknames that mean that person
+# in an event title. Add nicknames here as needed. Names not in the roster
+# (e.g. "Rob" in "David to call Rob") are ignored, so they never create or
+# break a match.
+# --------------------------------------------------------------------------
+ROSTER: dict[str, list[str]] = {
+    "Elise": ["elise"],
+    "David": ["david", "dave"],
+    "Evie": ["evie"],
+    "Kellan": ["kellan"],
+}
+
+# Optional (opt-in) fallback: for events whose title names nobody, guess the
+# participant from who created the event. OFF by default, because a name-less
+# family event ("Jellystone Camping") really involves everyone, not just its
+# creator -- attributing it to the creator alone could hide a real conflict
+# (e.g. Evie's appointment during the trip). Enable only if that trade-off is
+# acceptable for your calendar.
+CREATOR_MEMBERS: dict[str, str] = {
+    "edeitrick@gmail.com": "Elise",
+    "davidcpcu@gmail.com": "David",
+}
+
+
+def named_members(title: str, roster: dict[str, list[str]] = ROSTER) -> set[str]:
+    """Family members explicitly named in an event title (whole-word match)."""
+    low = title.lower()
+    found = set()
+    for canonical, aliases in roster.items():
+        for alias in aliases:
+            if re.search(r"\b" + re.escape(alias.lower()) + r"\b", low):
+                found.add(canonical)
+                break
+    return found
 
 
 # --------------------------------------------------------------------------
@@ -33,8 +78,19 @@ class Event:
     end: datetime            # timezone-aware, UTC (exclusive)
     all_day: bool
     created: datetime        # timezone-aware, UTC
-    creator: str             # display name, falling back to email
+    creator: str             # display name, falling back to email (for the email body)
+    creator_email: str       # raw creator email (for creator-based attribution)
     series: str | None       # recurringEventId, if any
+
+    def people(self, use_creator_fallback: bool = False) -> set[str]:
+        """Family members this event involves: names in the title, or -- if the
+        title names nobody -- the family member who created it."""
+        p = named_members(self.title)
+        if not p and use_creator_fallback:
+            m = CREATOR_MEMBERS.get(self.creator_email.lower())
+            if m:
+                p = {m}
+        return p
 
 
 def _parse_point(node: dict) -> tuple[datetime, bool]:
@@ -63,6 +119,7 @@ def parse_events(raw_events: list[dict]) -> list[Event]:
             all_day=all_day,
             created=datetime.fromisoformat(ev["created"].replace("Z", "+00:00")),
             creator=creator_node.get("displayName") or creator_node.get("email") or "Someone",
+            creator_email=creator_node.get("email", ""),
             series=ev.get("recurringEventId"),
         ))
     return out
@@ -75,6 +132,18 @@ def parse_events(raw_events: list[dict]) -> list[Event]:
 def _overlaps(a: Event, b: Event) -> bool:
     # Half-open intervals: [start, end). Touching edges do not overlap.
     return a.start < b.end and b.start < a.end
+
+
+def different_people(a: Event, b: Event, use_creator_fallback: bool = False) -> bool:
+    """True when the two events clearly involve different family members.
+
+    Both events must resolve to at least one family member and the two sets
+    must be disjoint. If either event's participants are unknown, we return
+    False (do NOT suppress) so a possible real conflict is never hidden.
+    """
+    pa = a.people(use_creator_fallback)
+    pb = b.people(use_creator_fallback)
+    return bool(pa) and bool(pb) and pa.isdisjoint(pb)
 
 
 @dataclass
@@ -101,7 +170,8 @@ class Conflict:
 
 
 def find_new_conflicts(events: list[Event], now: datetime,
-                       window: timedelta) -> list[Conflict]:
+                       window: timedelta,
+                       use_creator_fallback: bool = False) -> list[Conflict]:
     """Return conflicts caused by events created within ``window`` of ``now``.
 
     An event is a "new scheduling action" if its ``created`` timestamp is
@@ -118,6 +188,8 @@ def find_new_conflicts(events: list[Event], now: datetime,
                 continue
             if not _overlaps(a, b):
                 continue
+            if different_people(a, b, use_creator_fallback):
+                continue  # different people -> not a real conflict
             newer, older = (a, b) if a.created >= b.created else (b, a)
             if newer.created < cutoff:
                 continue  # nothing newly scheduled here
@@ -129,7 +201,8 @@ def find_new_conflicts(events: list[Event], now: datetime,
     return conflicts
 
 
-def all_conflicts(events: list[Event]) -> list[Conflict]:
+def all_conflicts(events: list[Event],
+                  use_creator_fallback: bool = False) -> list[Conflict]:
     """Every current overlap, regardless of when created (for a backlog digest)."""
     out: list[Conflict] = []
     for i, a in enumerate(events):
@@ -137,6 +210,8 @@ def all_conflicts(events: list[Event]) -> list[Conflict]:
             if a.series and a.series == b.series:
                 continue
             if not _overlaps(a, b):
+                continue
+            if different_people(a, b, use_creator_fallback):
                 continue
             newer, older = (a, b) if a.created >= b.created else (b, a)
             out.append(Conflict(newer, older, max(a.start, b.start)))
