@@ -1,0 +1,8 @@
+# Secrets and local state — never commit these
+.env
+credentials.json
+token.json
+state.json
+__pycache__/
+*.pyc
+events.json
