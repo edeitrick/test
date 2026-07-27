@@ -13,8 +13,8 @@ new event **on top of an existing one** — including on top of all-day events.
 
 ## How it runs (the live version)
 
-The monitor runs as a scheduled **Claude Code Routine** that already has access
-to your Google Calendar and Gmail. On each run it:
+The monitor runs as a scheduled **Claude Code Routine** (hourly) that already
+has access to your Google Calendar and Gmail. On each run it:
 
 1. Lists events on the Family calendar
    (`family04215781631001689506@group.calendar.google.com`) for the next ~90 days.
@@ -27,9 +27,19 @@ to your Google Calendar and Gmail. On each run it:
 4. The overlapping event that was created earlier is the "existing event";
    the newer one is the one being scheduled on top of it. The new event's
    creator is the person named in the email.
-5. Before sending, it searches Sent mail for the identical subject so the same
-   conflict is never emailed twice.
-6. Sends the alert to both addresses.
+5. Before drafting, it searches your mail (sent + existing drafts) for the
+   identical subject so the same conflict is never raised twice.
+6. Prepares the alert to both addresses (see the sending note below).
+
+### Sending: draft vs. auto-send
+
+The connected Gmail (the Claude Gmail connector) can **create drafts but not
+send** — no send capability is exposed. So the live Routine drops a ready-to-go
+draft into your Gmail addressed to both recipients, and you hit **Send**.
+
+For true hands-off **auto-send**, self-host the code (below) with either an
+app-password + SMTP or the Gmail API `gmail.send` scope. The detection logic
+and the exact subject/body are identical; only the final delivery step changes.
 
 ### Why it polls instead of firing instantly
 
