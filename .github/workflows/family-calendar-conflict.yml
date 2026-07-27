@@ -54,7 +54,7 @@ jobs:
           ALERT_RECIPIENTS: edeitrick@gmail.com,davidcpcu@gmail.com
           FAMILY_CALENDAR_ID: family04215781631001689506@group.calendar.google.com
           WINDOW_MINUTES: "30"
-          LOOKAHEAD_DAYS: "90"
+          LOOKAHEAD_DAYS: "360"
           USE_CREATOR_FALLBACK: "false"
 
       - name: Clean up token
